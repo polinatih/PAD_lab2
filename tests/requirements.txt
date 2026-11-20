@@ -1,0 +1,5 @@
+# Зависимости для запуска тестов на своём компьютере (без docker)
+-e ./libs/common
+aiosqlite==0.22.1
+pytest==9.2.0
+pytest-asyncio==1.5.0

@@ -1,0 +1,123 @@
+# Лабораторная работа №2. Микросервисная система доставки еды
+
+Backend сервиса доставки еды, построенный на микросервисной архитектуре. Клиент выбирает ресторан и блюда,
+оформляет и оплачивает заказ. Ресторан готовит заказ, курьер его доставляет, а система уведомляет каждого
+участника о смене статуса.
+
+**Стек:** Python 3.12 · FastAPI · PostgreSQL 16 · RabbitMQ · nginx (API Gateway) · Docker Compose
+
+> Проект разрабатывается поэтапно, прогресс отмечен в разделе [План разработки](#план-разработки).
+
+---
+
+## Архитектура
+
+```
+                              ┌───────────────────────────┐
+           Client ──────────► │  API Gateway (nginx)      │  routing · X-Request-ID · rate limiting
+                              └─────────────┬─────────────┘
+     ┌──────────────┬──────────────┬────────┴─────┬──────────────┬──────────────┬──────────────┐
+     ▼              ▼              ▼              ▼              ▼              ▼              ▼
+ ┌────────┐   ┌────────────┐  ┌────────┐    ┌─────────┐    ┌──────────┐  ┌──────────────┐ ┌────────┐
+ │  auth  │   │ restaurant │◄─│ order  │    │ payment │    │ delivery │  │ notification │ │ review │
+ └───┬────┘   └─────┬──────┘  └───┬────┘    └────┬────┘    └────┬─────┘  └──────┬───────┘ └───┬────┘
+     ▼              ▼     REST    ▼              ▼              ▼               ▼             ▼
+  auth_db    restaurant_db     order_db     payment_db     delivery_db   notification_db  review_db
+
+ ═════════════════════════ RabbitMQ: topic exchange "food.events" ═════════════════════════
+```
+
+### Сервисы
+
+| Сервис | Ответственность | БД |
+|---|---|---|
+| **auth-service** | регистрация, вход, JWT; роли `customer`, `restaurant`, `courier`, `admin` | `auth_db` |
+| **restaurant-service** | рестораны, меню, цены и наличие блюд | `restaurant_db` |
+| **order-service** | оформление заказа, жизненный цикл заказа (state machine) | `order_db` |
+| **payment-service** | оплата заказа и возврат денег (эмуляция платёжного шлюза) | `payment_db` |
+| **delivery-service** | курьеры, назначение курьера, статусы доставки | `delivery_db` |
+| **notification-service** | уведомления клиентам, ресторанам и курьерам | `notification_db` |
+| **review-service** | отзывы и рейтинги ресторанов (только после доставки) | `review_db` |
+
+### Главный сценарий (saga «заказ»)
+
+```
+customer ──POST /api/orders──► order-service ──REST──► restaurant-service (проверка блюд и цен)
+                                    │ status = PENDING_PAYMENT
+                                    ▼ order.created
+                              payment-service ──► payment.succeeded ──► order: PAID ──► ресторан принимает
+                                              └─► payment.failed ────► order: CANCELLED
+ресторан: «готово» ──► order.ready ──► delivery-service назначает курьера ──► delivery.assigned
+курьер: «забрал» / «доставил» ──► delivery.picked_up / delivery.delivered ──► order: DELIVERED
+                                                                         └──► review-service: можно оставить отзыв
+все события ──► notification-service
+```
+
+### Общая инфраструктура (`libs/common`)
+
+Код без бизнес-логики, одинаковый для всех сервисов:
+
+| Модуль | Что делает |
+|---|---|
+| `logging.py` | структурированные JSON-логи: `timestamp`, `service`, `level`, `request_id`, `message` |
+| `middleware.py` | `X-Request-ID` для каждого запроса + access-лог |
+| `errors.py` | единый формат ошибок `{"error": {"code", "message", "request_id"}}`, без stack trace |
+| `health.py` | `GET /health` (liveness) и `GET /ready` (readiness с проверкой БД и брокера) |
+| `auth.py` | проверка JWT, роли, защита внутренних endpoint'ов ключом `X-Internal-Key` |
+| `http.py` | HTTP-клиент для вызовов между сервисами: таймауты, повторы, проброс request_id |
+| `messaging.py` | RabbitMQ: публикация и подписка, повтор при ошибке, dead-letter очереди |
+| `db.py`, `config.py`, `app.py` | подключение к БД, настройки из env, фабрика FastAPI-приложения |
+
+---
+
+## Запуск
+
+Требуется Docker Desktop (Compose v2.20+).
+
+```bash
+copy .env.example .env          # Linux/macOS: cp .env.example .env
+docker compose up -d --build
+```
+
+| Что | Адрес |
+|---|---|
+| API Gateway | http://localhost:8080 (проверка: http://localhost:8080/health) |
+| Swagger UI | http://localhost:8080/docs |
+| RabbitMQ UI | http://localhost:15672 (логин и пароль из `.env`) |
+
+### Тесты
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate          # Linux/macOS: source .venv/bin/activate
+pip install -r tests/requirements.txt
+python scripts/run_unit_tests.py
+```
+
+---
+
+## План разработки
+
+- [x] **Этап 1.** Каркас: структура репозитория, общая библиотека, docker-compose (PostgreSQL, RabbitMQ), API Gateway
+- [ ] **Этап 2.** auth-service: регистрация, вход, JWT, роли
+- [ ] **Этап 3.** restaurant-service: рестораны и меню
+- [ ] **Этап 4.** order-service: оформление заказа, синхронная проверка блюд в restaurant-service
+- [ ] **Этап 5.** payment-service: оплата через события RabbitMQ (saga)
+- [ ] **Этап 6.** delivery-service: курьеры и доставка
+- [ ] **Этап 7.** notification-service и review-service
+- [ ] **Этап 8.** E2E-тесты, документация API, финальный README
+
+## Структура репозитория
+
+```
+├── README.md
+├── docker-compose.yml
+├── .env.example
+├── services/                 # микросервисы (появляются начиная с этапа 2)
+├── libs/common/              # общая инфраструктурная библиотека
+├── gateway/                  # конфигурация nginx (API Gateway)
+├── infrastructure/postgres/  # создание отдельной БД для каждого сервиса
+├── tests/                    # e2e-тесты
+├── scripts/                  # вспомогательные скрипты
+└── docs/                     # документация
+```
