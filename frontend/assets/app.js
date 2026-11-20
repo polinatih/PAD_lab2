@@ -8,6 +8,7 @@ import { authView } from "./views/auth.js";
 import { cartView } from "./views/cart.js";
 import { catalogView, restaurantView } from "./views/catalog.js";
 import { homeView } from "./views/home.js";
+import { kitchenView } from "./views/kitchen.js";
 import { orderView, ordersView } from "./views/orders.js";
 import { manageRestaurantView, myRestaurantsView } from "./views/owner.js";
 import { profileView } from "./views/profile.js";
@@ -15,7 +16,7 @@ import { profileView } from "./views/profile.js";
 const root = document.getElementById("app");
 
 // Стартовая страница зависит от роли
-const HOME_BY_ROLE = { customer: catalogView, admin: catalogView, restaurant: myRestaurantsView, courier: homeView };
+const HOME_BY_ROLE = { customer: catalogView, admin: catalogView, restaurant: kitchenView, courier: homeView };
 
 // Маршруты: шаблон пути (":id" — параметр) -> { view, roles?, public? }
 const routes = [
@@ -27,6 +28,7 @@ const routes = [
   ["/cart", { view: cartView, roles: ["customer"] }],
   ["/orders", { view: ordersView }],
   ["/orders/:id", { view: orderView }],
+  ["/kitchen", { view: kitchenView, roles: ["restaurant", "admin"] }],
   ["/my", { view: myRestaurantsView, roles: ["restaurant", "admin"] }],
   ["/my/:id", { view: manageRestaurantView, roles: ["restaurant", "admin"] }],
   ["/profile", { view: profileView }],

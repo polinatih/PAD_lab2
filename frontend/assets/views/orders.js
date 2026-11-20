@@ -2,6 +2,7 @@ import { api, session } from "../api.js";
 import { plural } from "../cart.js";
 import { money } from "../cuisine.js";
 import { h, toast } from "../dom.js";
+import { paymentPanel } from "./payment.js";
 
 const FINAL = new Set(["delivered", "cancelled"]);
 const CUSTOMER_CANCELLABLE = new Set(["pending_payment", "paid"]);
@@ -32,7 +33,7 @@ function trackingSteps(order) {
     { label: "Заказ оформлен", time: order.created_at, done: true },
     { label: "Оплачен", time: at("paid"), done: r >= rank("paid"), wait: "ждём оплату" },
     { label: "Ресторан готовит", time: at("cooking"), done: r >= rank("ready"),
-      wait: r === rank("cooking") ? `обычно ${order.prep_minutes}–${order.prep_minutes + 15} мин` : "ждём подтверждения ресторана" },
+      wait: r === rank("cooking") ? `обычно ${order.prep_minutes}–${order.prep_minutes + 15} мин` : "ждём ресторан" },
     { label: "Курьер в пути", time: at("in_delivery"), done: r >= rank("delivered"),
       wait: { ready: "ищем курьера", courier_assigned: "курьер едет в ресторан", in_delivery: "курьер везёт заказ" }[order.status] },
     { label: "Доставлен", time: at("delivered"), done: order.status === "delivered" },
@@ -101,6 +102,23 @@ export async function orderView({ params }) {
   let order = await api(`/api/orders/${params.id}`);
   const route = location.hash;
   const holder = h("div", { class: "orderpage" });
+  let payPanel = null;
+
+  async function reload() {
+    const fresh = await api(`/api/orders/${order.id}`);
+    const changed = fresh.status !== order.status;
+    order = fresh;
+    if (changed) draw();
+    return changed;
+  }
+
+  // После оплаты статус меняется асинхронно (payment → RabbitMQ → order), проверяем чаще обычного
+  async function afterPayment() {
+    for (let i = 0; i < 10; i++) {
+      await new Promise((r) => setTimeout(r, 700));
+      if (await reload()) return;
+    }
+  }
 
   function draw() {
     const isCustomer = order.customer_id === session.user?.id;
@@ -118,6 +136,10 @@ export async function orderView({ params }) {
       }
     });
 
+    if (isCustomer && order.status === "pending_payment") payPanel ||= paymentPanel(order, afterPayment);
+    else payPanel = null;
+    const paidNote = order.history.find((x) => x.status === "paid")?.note;
+
     holder.replaceChildren(
       ticket(order),
       h("aside", { class: "orderinfo" },
@@ -128,7 +150,9 @@ export async function orderView({ params }) {
           h("div", {}, h("dt", {}, "Откуда"), h("dd", {}, `${order.restaurant_name}, ${order.restaurant_address}`)),
           h("div", {}, h("dt", {}, "Телефон"), h("dd", {}, order.customer_phone || "не указан")),
           order.comment ? h("div", {}, h("dt", {}, "Комментарий"), h("dd", {}, order.comment)) : null,
+          paidNote ? h("div", {}, h("dt", {}, "Оплата"), h("dd", {}, paidNote.replace("Оплачено: ", ""))) : null,
           h("div", {}, h("dt", {}, "Оформлен"), h("dd", {}, when(order.created_at)))),
+        payPanel,
         cancel));
   }
 
@@ -136,12 +160,7 @@ export async function orderView({ params }) {
   const timer = setInterval(async () => {
     if (location.hash !== route || FINAL.has(order.status)) return clearInterval(timer);
     try {
-      const fresh = await api(`/api/orders/${order.id}`);
-      if (fresh.status !== order.status) {
-        order = fresh;
-        draw();
-        toast(`Заказ № ${order.number}: ${order.status_label.toLowerCase()}`, "info");
-      }
+      if (await reload()) toast(`Заказ № ${order.number}: ${order.status_label.toLowerCase()}`, "info");
     } catch { /* сеть моргнула — попробуем в следующий раз */ }
   }, 4000);
 

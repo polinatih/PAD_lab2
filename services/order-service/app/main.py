@@ -10,6 +10,7 @@ from common.messaging import EventBus
 
 from .api import internal, router
 from .config import Settings
+from .events import OrderEventHandlers
 from .outbox import OutboxRelay
 
 DESCRIPTION = """
@@ -19,6 +20,10 @@ DESCRIPTION = """
 1. **синхронно (REST)** спрашивает restaurant-service: есть ли блюда и сколько стоит заказ (`/internal/restaurants/{id}/quote`);
 2. **синхронно, но необязательно** берёт имя и телефон клиента из auth-service (если он недоступен, заказ всё равно оформляется);
 3. **асинхронно** публикует `order.created` через transactional outbox.
+
+Saga «заказ»: слушает `payment.succeeded` (→ `paid`) и `payment.failed` (→ `cancelled`, компенсация).
+Ресторан принимает заказ (`/accept` → `cooking`, событие `order.accepted`) и отмечает готовность
+(`/ready` → `ready`, событие `order.ready` для delivery-service).
 
 Статусы: `pending_payment → paid → cooking → ready → courier_assigned → in_delivery → delivered`, отмена: `cancelled`.
 
@@ -38,6 +43,9 @@ def build_app(settings: Settings | None = None, bus=None, restaurants_client=Non
         "auth-service", settings.auth_service_url, internal_key=settings.internal_api_key,
         timeout=settings.http_timeout, retries=0)
     outbox = OutboxRelay(db, bus, settings.outbox_poll_seconds)
+    handlers = OrderEventHandlers(db, outbox)
+    bus.subscribe(["payment.succeeded"], handlers.on_payment_succeeded)
+    bus.subscribe(["payment.failed"], handlers.on_payment_failed)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):

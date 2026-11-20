@@ -54,7 +54,7 @@ export function formatDate(iso) {
 export function showFieldErrors(form, error) {
   form.querySelectorAll(".field__error").forEach((e) => e.remove());
   form.querySelectorAll("[aria-invalid]").forEach((e) => e.removeAttribute("aria-invalid"));
-  for (const detail of error?.details || []) {
+  for (const detail of Array.isArray(error?.details) ? error.details : []) {
     const input = form.elements[detail.field];
     if (!input || !input.closest) continue;
     input.setAttribute("aria-invalid", "true");

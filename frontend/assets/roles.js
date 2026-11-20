@@ -10,7 +10,8 @@ const CATALOG = { href: "#/catalog", label: "Рестораны", match: /^\/(ca
 
 export const NAV = {
   customer: [CATALOG, { href: "#/orders", label: "Мои заказы", match: /^\/orders/ }],
-  restaurant: [{ href: "#/my", label: "Мои рестораны", match: /^\/(my(\/.+)?)?$/ },
+  restaurant: [{ href: "#/kitchen", label: "Заказы", match: /^\/(kitchen)?$/ },
+               { href: "#/my", label: "Мои рестораны", match: /^\/my(\/.+)?$/ },
                { ...CATALOG, match: /^\/(catalog|restaurants\/.+)$/ }],
   courier: [],
   admin: [CATALOG, { href: "#/admin/users", label: "Пользователи" }],

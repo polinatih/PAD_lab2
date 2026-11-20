@@ -54,6 +54,20 @@ customer ──POST /api/orders──► order-service ──REST──► resta
 все события ──► notification-service
 ```
 
+### События (RabbitMQ, exchange `food.events`)
+
+| Событие | Кто публикует | Кто слушает | Что происходит |
+|---|---|---|---|
+| `order.created` | order-service | payment-service | создаётся платёж, ждём оплату |
+| `payment.succeeded` | payment-service | order-service | заказ → «Оплачен» |
+| `payment.failed` | payment-service | order-service | заказ → «Отменён» (компенсация: 3 отказа банка или 15 минут без оплаты) |
+| `order.cancelled` | order-service | payment-service | если заказ был оплачен — возврат денег, `payment.refunded` |
+| `order.paid`, `order.accepted` | order-service | (notification-service, этап 7) | уведомления ресторану и клиенту |
+| `order.ready` | order-service | (delivery-service, этап 6) | поиск курьера |
+
+События order-service и payment-service отправляются через **transactional outbox**: событие пишется в БД
+в той же транзакции, что и изменение заказа или платежа, и не теряется, даже если брокер временно недоступен.
+
 ### Общая инфраструктура (`libs/common`)
 
 Код без бизнес-логики, одинаковый для всех сервисов:
@@ -123,7 +137,13 @@ POST  /internal/restaurants/{id}/quote     проверка блюд и расч
 POST  /api/orders                          оформить заказ (заголовок Idempotency-Key защищает от двойного клика)
 GET   /api/orders                          мои заказы (?active=true, ?status=paid,cooking)
 GET   /api/orders/{id}                     заказ: состав и история статусов
-POST  /api/orders/{id}/cancel              отменить заказ
+POST  /api/orders/{id}/cancel              отменить заказ (клиент — до начала готовки, ресторан — отказаться)
+POST  /api/orders/{id}/accept              ресторан: принять и начать готовить
+POST  /api/orders/{id}/ready               ресторан: готово, нужен курьер
+
+GET   /api/payments/order/{order_id}       платёж по заказу
+POST  /api/payments/order/{order_id}/pay   оплатить картой (тест: 4242 4242 4242 4242 — успех, 4000 0000 0000 0002 — отказ)
+GET   /api/payments                        все платежи (admin)
 
 GET   /health, /ready            у каждого сервиса
 ```
@@ -145,7 +165,7 @@ python scripts/run_unit_tests.py
 - [x] **Этап 2.** auth-service: регистрация, вход, JWT, роли + веб-интерфейс: вход, регистрация, профиль, управление пользователями
 - [x] **Этап 3.** restaurant-service: рестораны и меню + UI: каталог ресторанов, кабинет ресторана, демо-данные
 - [x] **Этап 4.** order-service: оформление заказа, синхронная проверка блюд в restaurant-service, outbox, Idempotency-Key + UI: корзина, мои заказы, отслеживание заказа
-- [ ] **Этап 5.** payment-service: оплата через события RabbitMQ (saga)
+- [x] **Этап 5.** payment-service: оплата через события RabbitMQ (saga), возвраты, тайм-аут оплаты + UI: оплата картой, доска заказов ресторана
 - [ ] **Этап 6.** delivery-service: курьеры и доставка + UI: кабинет курьера, отслеживание заказа
 - [ ] **Этап 7.** notification-service и review-service
 - [ ] **Этап 8.** E2E-тесты, документация API, финальный README
@@ -159,7 +179,8 @@ python scripts/run_unit_tests.py
 ├── services/                 # микросервисы
 │   ├── auth-service/         #   app/ (код), tests/, Dockerfile, requirements.txt
 │   ├── restaurant-service/
-│   └── order-service/
+│   ├── order-service/
+│   └── payment-service/
 ├── frontend/                 # веб-интерфейс (раздаётся gateway)
 ├── libs/common/              # общая инфраструктурная библиотека
 ├── gateway/                  # конфигурация nginx (API Gateway)

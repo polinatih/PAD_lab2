@@ -92,3 +92,48 @@ def test_state_machine():
     assert not states.can_transition(states.PENDING_PAYMENT, states.COOKING)  # нельзя готовить неоплаченный
     with pytest.raises(Conflict):
         states.ensure_transition(states.CANCELLED, states.PAID)
+
+
+def _paid_order(client, bus):
+    oid = client.post("/api/orders", json=ORDER, headers=CUSTOMER).json()["id"]
+    client.portal.call(bus.deliver, "payment.succeeded", {"order_id": oid, "card_brand": "Visa", "card_last4": "4242"})
+    return oid
+
+
+def test_saga_payment_succeeded_then_kitchen(client, bus):
+    oid = _paid_order(client, bus)
+    order = client.get(f"/api/orders/{oid}", headers=CUSTOMER).json()
+    assert order["status"] == "paid" and order["history"][-1]["note"] == "Оплачено: Visa •• 4242"
+    # повторная доставка того же события ничего не меняет
+    client.portal.call(bus.deliver, "payment.succeeded", {"order_id": oid})
+    assert len(client.get(f"/api/orders/{oid}", headers=CUSTOMER).json()["history"]) == 2
+
+    assert client.post(f"/api/orders/{oid}/accept", headers=CUSTOMER).status_code == 403
+    assert client.post(f"/api/orders/{oid}/ready", headers=OWNER).status_code == 409  # сначала нужно принять
+    assert client.post(f"/api/orders/{oid}/accept", headers=OWNER).json()["status"] == "cooking"
+    assert client.post(f"/api/orders/{oid}/cancel", headers=CUSTOMER).status_code == 409  # уже готовят
+    ready = client.post(f"/api/orders/{oid}/ready", headers=OWNER).json()
+    assert ready["status"] == "ready"
+    types = wait_events(bus, 4)
+    assert types == ["order.created", "order.paid", "order.accepted", "order.ready"]
+    assert bus.published[3]["data"]["delivery_address"] == ORDER["delivery_address"]
+
+
+def test_saga_payment_failed_cancels_order(client, bus):
+    oid = client.post("/api/orders", json=ORDER, headers=CUSTOMER).json()["id"]
+    client.portal.call(bus.deliver, "payment.failed", {"order_id": oid, "reason": "Время на оплату истекло"})
+    order = client.get(f"/api/orders/{oid}", headers=CUSTOMER).json()
+    assert order["status"] == "cancelled" and order["cancel_reason"] == "Время на оплату истекло"
+    assert wait_events(bus, 2)[-1] == "order.cancelled"
+    assert bus.published[-1]["data"]["refund"] is False
+    # оплата, пришедшая после отмены, заказ не «воскрешает»
+    client.portal.call(bus.deliver, "payment.succeeded", {"order_id": oid})
+    assert client.get(f"/api/orders/{oid}", headers=CUSTOMER).json()["status"] == "cancelled"
+
+
+def test_restaurant_rejects_paid_order_with_refund(client, bus):
+    oid = _paid_order(client, bus)
+    r = client.post(f"/api/orders/{oid}/cancel", json={"reason": "Закончилось тесто"}, headers=OWNER)
+    assert r.status_code == 200 and r.json()["cancel_reason"] == "Закончилось тесто"
+    assert wait_events(bus, 3)[-1] == "order.cancelled"
+    assert bus.published[-1]["data"]["refund"] is True and bus.published[-1]["data"]["cancelled_by"] == "ресторан"

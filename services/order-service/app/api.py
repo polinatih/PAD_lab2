@@ -161,6 +161,37 @@ async def cancel_order(order_id: str, request: Request, body: CancelIn | None = 
     return await _order(session, order.id)
 
 
+async def _owned_by_restaurant(session, user: CurrentUser, order_id: str) -> Order:
+    order = await _visible(session, user, order_id)
+    if not (user.is_admin or order.restaurant_owner_id == user.id):
+        raise Forbidden("Это действие доступно только ресторану, который готовит заказ")
+    return order
+
+
+@router.post("/{order_id}/accept", response_model=OrderOut, summary="Ресторан: принять заказ и начать готовить")
+async def accept_order(order_id: str, request: Request, user: CurrentUser = Depends(current_user),
+                       session: AsyncSession = Depends(get_session)):
+    order = await _owned_by_restaurant(session, user, order_id)
+    change_status(session, order, states.COOKING, note="Ресторан начал готовить", event="order.accepted")
+    await session.commit()
+    request.app.state.outbox.kick()
+    return await _order(session, order.id)
+
+
+@router.post("/{order_id}/ready", response_model=OrderOut, summary="Ресторан: заказ готов, нужен курьер")
+async def ready_order(order_id: str, request: Request, user: CurrentUser = Depends(current_user),
+                      session: AsyncSession = Depends(get_session)):
+    order = await _owned_by_restaurant(session, user, order_id)
+    # order.ready: delivery-service начнёт искать курьера
+    change_status(session, order, states.READY, note="Заказ готов, ищем курьера", event="order.ready",
+                  extra={"restaurant_address": order.restaurant_address, "delivery_address": order.delivery_address,
+                         "customer_name": order.customer_name, "customer_phone": order.customer_phone,
+                         "comment": order.comment, "delivery_fee": float(order.delivery_fee)})
+    await session.commit()
+    request.app.state.outbox.kick()
+    return await _order(session, order.id)
+
+
 @internal.get("/orders/{order_id}", response_model=OrderOut, summary="Заказ (для других сервисов)")
 async def internal_order(order_id: str, session: AsyncSession = Depends(get_session)):
     return await _order(session, order_id)
