@@ -89,6 +89,18 @@ docker compose up -d --build
 
 Администратор создаётся автоматически: `admin@example.com` / `admin12345` (меняется в `.env`).
 
+При запуске контейнер `demo-seed` загружает демо-данные: 6 ресторанов Кишинёва с меню и тестовые аккаунты.
+Пароль у всех демо-аккаунтов `demo12345`:
+
+| Email | Роль |
+|---|---|
+| `client@demo.md` | клиент |
+| `courier@demo.md` | курьер |
+| `owner1@demo.md`, `owner2@demo.md`, `owner3@demo.md` | владельцы ресторанов |
+
+> **После обновления проекта** (новый этап) выполните `docker compose up -d --build`, а затем
+> `docker compose restart gateway`: nginx читает свою конфигурацию только при старте.
+
 ### Основные endpoint'ы
 
 ```
@@ -98,6 +110,16 @@ GET   /api/auth/me               мой профиль
 PATCH /api/auth/me               изменить имя или телефон
 GET   /api/auth/users            список пользователей (admin)
 PATCH /api/auth/users/{id}/role  изменить роль (admin)
+
+GET   /api/restaurants                     каталог (поиск ?q=, фильтры ?cuisine=, ?open_only=)
+GET   /api/restaurants/{id}                ресторан и меню
+GET   /api/restaurants/mine                мои рестораны (владелец)
+POST  /api/restaurants                     открыть ресторан (роль restaurant)
+PATCH /api/restaurants/{id}                изменить, открыть или закрыть приём заказов
+POST  /api/restaurants/{id}/menu           добавить блюдо
+PATCH /api/restaurants/{id}/menu/{item}    цена, наличие
+POST  /internal/restaurants/{id}/quote     проверка блюд и расчёт стоимости (для order-service)
+
 GET   /health, /ready            у каждого сервиса
 ```
 
@@ -116,7 +138,7 @@ python scripts/run_unit_tests.py
 
 - [x] **Этап 1.** Каркас: структура репозитория, общая библиотека, docker-compose (PostgreSQL, RabbitMQ), API Gateway
 - [x] **Этап 2.** auth-service: регистрация, вход, JWT, роли + веб-интерфейс: вход, регистрация, профиль, управление пользователями
-- [ ] **Этап 3.** restaurant-service: рестораны и меню + UI: каталог ресторанов, кабинет ресторана
+- [x] **Этап 3.** restaurant-service: рестораны и меню + UI: каталог ресторанов, кабинет ресторана, демо-данные
 - [ ] **Этап 4.** order-service: оформление заказа, синхронная проверка блюд в restaurant-service + UI: корзина, мои заказы
 - [ ] **Этап 5.** payment-service: оплата через события RabbitMQ (saga)
 - [ ] **Этап 6.** delivery-service: курьеры и доставка + UI: кабинет курьера, отслеживание заказа
@@ -130,12 +152,13 @@ python scripts/run_unit_tests.py
 ├── docker-compose.yml
 ├── .env.example
 ├── services/                 # микросервисы
-│   └── auth-service/         #   app/ (код), tests/, Dockerfile, requirements.txt
+│   ├── auth-service/         #   app/ (код), tests/, Dockerfile, requirements.txt
+│   └── restaurant-service/
 ├── frontend/                 # веб-интерфейс (раздаётся gateway)
 ├── libs/common/              # общая инфраструктурная библиотека
 ├── gateway/                  # конфигурация nginx (API Gateway)
 ├── infrastructure/postgres/  # создание отдельной БД для каждого сервиса
 ├── tests/                    # e2e-тесты
-├── scripts/                  # вспомогательные скрипты
+├── scripts/                  # seed_demo.py (демо-данные), run_unit_tests.py
 └── docs/                     # документация
 ```

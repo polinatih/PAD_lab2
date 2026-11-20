@@ -5,10 +5,13 @@ export const ROLE_LABELS = {
   admin: "Администратор",
 };
 
-// Пункты меню для каждой роли. Новые разделы добавляются сюда по мере появления сервисов.
+// Пункты меню для каждой роли. match — какие страницы подсвечивают пункт как текущий.
+const CATALOG = { href: "#/catalog", label: "Рестораны", match: /^\/(catalog|restaurants\/.+)?$/ };
+
 export const NAV = {
-  customer: [],
-  restaurant: [],
+  customer: [CATALOG],
+  restaurant: [{ href: "#/my", label: "Мои рестораны", match: /^\/(my(\/.+)?)?$/ },
+               { ...CATALOG, match: /^\/(catalog|restaurants\/.+)$/ }],
   courier: [],
-  admin: [{ href: "#/admin/users", label: "Пользователи" }],
+  admin: [CATALOG, { href: "#/admin/users", label: "Пользователи" }],
 };

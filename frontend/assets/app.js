@@ -4,19 +4,39 @@ import { h, icon, toast } from "./dom.js";
 import { NAV, ROLE_LABELS } from "./roles.js";
 import { adminUsersView } from "./views/admin-users.js";
 import { authView } from "./views/auth.js";
+import { catalogView, restaurantView } from "./views/catalog.js";
 import { homeView } from "./views/home.js";
+import { manageRestaurantView, myRestaurantsView } from "./views/owner.js";
 import { profileView } from "./views/profile.js";
 
 const root = document.getElementById("app");
 
-// path -> { view, roles?, public? }
-const routes = {
-  "/login": { view: (ctx) => authView({ ...ctx, mode: "login" }), public: true },
-  "/register": { view: (ctx) => authView({ ...ctx, mode: "register" }), public: true },
-  "/": { view: homeView },
-  "/profile": { view: profileView },
-  "/admin/users": { view: adminUsersView, roles: ["admin"] },
-};
+// Стартовая страница зависит от роли
+const HOME_BY_ROLE = { customer: catalogView, admin: catalogView, restaurant: myRestaurantsView, courier: homeView };
+
+// Маршруты: шаблон пути (":id" — параметр) -> { view, roles?, public? }
+const routes = [
+  ["/login", { view: (ctx) => authView({ ...ctx, mode: "login" }), public: true }],
+  ["/register", { view: (ctx) => authView({ ...ctx, mode: "register" }), public: true }],
+  ["/", { view: (ctx) => (HOME_BY_ROLE[session.user?.role] || homeView)(ctx) }],
+  ["/catalog", { view: catalogView }],
+  ["/restaurants/:id", { view: restaurantView }],
+  ["/my", { view: myRestaurantsView, roles: ["restaurant", "admin"] }],
+  ["/my/:id", { view: manageRestaurantView, roles: ["restaurant", "admin"] }],
+  ["/profile", { view: profileView }],
+  ["/admin/users", { view: adminUsersView, roles: ["admin"] }],
+].map(([pattern, route]) => ({
+  ...route,
+  regex: new RegExp(`^${pattern.replace(/:(\w+)/g, "(?<$1>[^/]+)")}$`),
+}));
+
+function match(path) {
+  for (const route of routes) {
+    const m = path.match(route.regex);
+    if (m) return { route, params: { ...m.groups } };
+  }
+  return { route: null, params: {} };
+}
 
 function navigate(hash) {
   if (location.hash === hash) render();
@@ -26,8 +46,10 @@ function navigate(hash) {
 function shell(content) {
   const user = session.user;
   const path = location.hash.slice(1) || "/";
-  const links = (NAV[user.role] || []).map((item) =>
-    h("a", { class: "nav__link", href: item.href, "aria-current": item.href === `#${path}` ? "page" : false }, item.label));
+  const links = (NAV[user.role] || []).map((item) => {
+    const active = item.match ? item.match.test(path) : item.href === `#${path}`;
+    return h("a", { class: "nav__link", href: item.href, "aria-current": active ? "page" : false }, item.label);
+  });
 
   const logout = h("button", { class: "btn btn--ghost btn--icon", type: "button", title: "Выйти" }, icon("logout", 20),
     h("span", { class: "sr-only" }, "Выйти"));
@@ -59,14 +81,17 @@ function errorPage(err) {
 
 async function render() {
   const path = location.hash.slice(1) || "/";
-  const route = routes[path];
-  const ctx = { navigate };
+  const { route, params } = match(path);
+  const ctx = { navigate, params };
 
   if (!route) {
     root.replaceChildren(session.token ? shell(errorPage({ status: 404, message: "Такого раздела нет." })) : authView({ ...ctx }));
     return;
   }
-  if (!route.public && !session.token) return navigate("#/login");
+  if (!route.public && (!session.token || !session.user)) {
+    session.clear();
+    return navigate("#/login");
+  }
   if (route.public && session.token) return navigate("#/");
   if (route.roles && !route.roles.includes(session.user?.role)) return navigate("#/");
 
@@ -78,12 +103,15 @@ async function render() {
   root.replaceChildren(shell(h("div", { class: "loading", "aria-busy": "true" }, "Загрузка…")));
   try {
     const content = await route.view(ctx);
+    // пока страница загружалась, пользователь мог выйти или перейти в другой раздел
+    if (!session.user || (location.hash.slice(1) || "/") !== path) return;
     root.replaceChildren(shell(content));
   } catch (err) {
     if (err.status === 401) return; // обработает событие auth:expired
     root.replaceChildren(shell(errorPage(err)));
   }
-  document.getElementById("main")?.focus?.();
+  window.scrollTo(0, 0);
+  document.getElementById("main")?.focus?.({ preventScroll: true });
 }
 
 window.addEventListener("hashchange", render);

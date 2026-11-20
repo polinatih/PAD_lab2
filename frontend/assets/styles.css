@@ -74,22 +74,25 @@ p { margin: 0; }
 .btn--ghost:hover { border-color: var(--ink); }
 .btn--icon { width: 42px; min-height: 42px; padding: 0; }
 .btn--wide { width: 100%; }
+.btn--small { min-height: 34px; padding: 0 14px; font-size: var(--step--1); }
 
 /* ---------- формы ---------- */
 .form { display: grid; gap: 18px; }
 .form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form__row--3 { grid-template-columns: repeat(3, 1fr); }
 .field { display: grid; gap: 6px; }
 .field__label { font-weight: 600; font-size: var(--step--1); }
 .field__hint { color: var(--muted); font-size: var(--step--1); }
 .field__error { color: var(--chili); font-size: var(--step--1); font-weight: 500; }
 .field:has(.field__error) .field__hint { display: none; }
-input, select {
+input, select, textarea {
   width: 100%; min-height: 46px; padding: 0 14px;
   font: inherit; color: var(--ink);
   background: var(--plate); border: 1.5px solid var(--line); border-radius: var(--radius-s);
 }
-input:hover, select:hover { border-color: #b3bdb5; }
-input:focus-visible, select:focus-visible { border-color: var(--basil); box-shadow: 0 0 0 3px var(--basil-soft); }
+textarea { padding: 12px 14px; min-height: 0; resize: vertical; line-height: 1.45; }
+input:hover, select:hover, textarea:hover { border-color: #b3bdb5; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { border-color: var(--basil); box-shadow: 0 0 0 3px var(--basil-soft); }
 input[aria-invalid] { border-color: var(--chili); background: var(--chili-soft); }
 select { cursor: pointer; }
 
@@ -218,6 +221,91 @@ select { cursor: pointer; }
 .empty__title { font: 700 var(--step-2)/1.1 var(--font-display); }
 .loading { color: var(--muted); padding: 40px; text-align: center; }
 
+.panel__title { font: 700 var(--step-1)/1.2 var(--font-display); letter-spacing: -0.01em; }
+.backlink { justify-self: start; color: var(--muted); text-decoration: none; font-weight: 500; margin-bottom: -12px; }
+.backlink::before { content: "‹ "; }
+.backlink:hover { color: var(--ink); }
+.notice { padding: 12px 16px; border-radius: var(--radius-m); background: var(--saffron-soft); color: #5c3f06; font-weight: 500; }
+.empty--wide { grid-column: 1 / -1; }
+
+/* ---------- переключатель ---------- */
+.switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 500; user-select: none; white-space: nowrap; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch__track { width: 44px; height: 26px; border-radius: 999px; background: var(--line); position: relative; transition: background-color .15s; flex: none; }
+.switch__track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--plate); transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.switch input:checked + .switch__track { background: var(--basil); }
+.switch input:checked + .switch__track::after { transform: translateX(18px); }
+.switch input:focus-visible + .switch__track { box-shadow: var(--focus); }
+.switch--small { font-size: var(--step--1); }
+
+/* ---------- обложки ресторанов: цвет кухни + название крупным шрифтом ---------- */
+.cover {
+  position: relative; overflow: hidden;
+  background: var(--cover-bg); color: var(--cover-fg);
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.cover__name { font: 800 var(--step-2)/0.98 var(--font-display); letter-spacing: -0.035em; overflow-wrap: anywhere; hyphens: auto; }
+.cover__cuisine { font-weight: 600; font-size: var(--step--1); opacity: .85; }
+.cover__closed { position: absolute; top: 14px; right: 14px; padding: 4px 10px; border-radius: 999px; background: var(--ink); color: var(--plate); font-size: 0.75rem; font-weight: 600; }
+.cover--closed { filter: grayscale(.85); }
+.cover--card { aspect-ratio: 4 / 3; padding: 20px; border-radius: var(--radius-l) var(--radius-l) 0 0; }
+.cover--card .cover__name { font-size: clamp(1.75rem, 2.4vw, 2.1rem); }
+.cover--hero { min-height: 260px; padding: clamp(24px, 4vw, 40px); border-radius: var(--radius-l); }
+.cover--hero .cover__name { font-size: var(--step-4); max-width: 12ch; }
+.cover--mini { width: 72px; height: 72px; padding: 8px; border-radius: var(--radius-m); flex: none; }
+.cover--mini .cover__name { font-size: 0.7rem; letter-spacing: -0.01em; }
+.cover--mini .cover__cuisine, .cover--mini .cover__closed { display: none; }
+
+/* ---------- каталог ---------- */
+.searchbox { width: min(100%, 340px); }
+.searchbox input { border-radius: 999px; padding: 0 20px; }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: -8px; }
+.filter { min-height: 38px; padding: 0 16px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--plate); font: 500 var(--step--1)/1 var(--font-body); color: var(--ink); cursor: pointer; }
+.filter:hover { border-color: var(--ink); }
+.filter[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--plate); }
+.filters .switch { margin-left: auto; font-size: var(--step--1); }
+
+.rgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 22px; }
+.rcard { display: flex; flex-direction: column; background: var(--plate); border-radius: var(--radius-l); text-decoration: none; color: inherit; outline-offset: 3px; }
+.rcard:hover .cover { filter: brightness(1.06); }
+.rcard--closed:hover .cover { filter: grayscale(.85) brightness(1.06); }
+.rcard__body { padding: 16px 20px 20px; display: grid; gap: 8px; }
+.rcard__desc { color: var(--ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rcard__facts { color: var(--muted); font-size: var(--step--1); }
+
+/* ---------- страница ресторана ---------- */
+.rhero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; align-items: stretch; }
+.rhero__info { background: var(--plate); border-radius: var(--radius-l); padding: clamp(20px, 3vw, 32px); display: grid; gap: 20px; align-content: start; }
+.rhero__desc { font-size: var(--step-1); line-height: 1.45; }
+.facts--inline { border: 0; padding: 0; }
+
+.menu__nav { display: flex; gap: 8px; flex-wrap: wrap; position: sticky; top: 71px; z-index: 5; background: var(--sage); padding: 10px 0; }
+.menu__nav a { padding: 7px 14px; border-radius: 999px; background: var(--plate); color: var(--ink); text-decoration: none; font-weight: 500; font-size: var(--step--1); }
+.menu__nav a:hover { background: var(--ink); color: var(--plate); }
+.menu { display: grid; gap: 32px; }
+.menu__group { scroll-margin-top: 140px; display: grid; gap: 12px; }
+.menu__title { font: 700 var(--step-1)/1.2 var(--font-display); }
+.menu__list { list-style: none; margin: 0; padding: 0; background: var(--plate); border-radius: var(--radius-l); }
+.dish { display: flex; justify-content: space-between; gap: 20px; padding: 16px 22px; border-bottom: 1.5px solid var(--sage); }
+.dish:last-child { border-bottom: 0; }
+.dish__name { font-weight: 600; }
+.dish__desc { color: var(--muted); font-size: var(--step--1); margin-top: 2px; }
+.dish__side { display: grid; justify-items: end; align-content: start; gap: 4px; flex: none; }
+.dish__price { font-weight: 700; white-space: nowrap; }
+.dish--off .dish__name, .dish--off .dish__price { color: var(--muted); }
+
+/* ---------- кабинет ресторана ---------- */
+.ownlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.ownlist__item { display: flex; align-items: center; gap: 18px; padding: 14px 18px 14px 14px; background: var(--plate); border-radius: var(--radius-l); flex-wrap: wrap; }
+.ownlist__info { flex: 1; min-width: 180px; }
+.ownlist__name { font: 700 var(--step-1)/1.2 var(--font-display); color: var(--ink); text-decoration: none; }
+.ownlist__name:hover { color: var(--basil); }
+.split { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.dishedits { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--sage); }
+.dishedit { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1.5px solid var(--sage); }
+.dishedit__pricebox { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: var(--step--1); }
+.dishedit__price { width: 92px; min-height: 38px; text-align: right; }
+
 /* ---------- уведомления ---------- */
 .toasts { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 100; width: min(92vw, 420px); }
 .toast { padding: 12px 18px; border-radius: var(--radius-m); background: var(--ink); color: var(--plate); font-weight: 500; animation: toast-in .2s ease-out; transition: opacity .3s; }
@@ -227,18 +315,25 @@ select { cursor: pointer; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 
 /* ---------- адаптивность ---------- */
+@media (max-width: 960px) {
+  .rhero, .split { grid-template-columns: 1fr; }
+  .dishedit { grid-template-columns: 1fr auto; }
+}
 @media (max-width: 860px) {
   .auth { grid-template-columns: 1fr; }
   .auth__intro { gap: 18px; padding-bottom: 48px; }
   .ticket { display: none; }
   .wordmark--large { font-size: var(--step-3); }
   .topbar { gap: 12px; flex-wrap: wrap; }
-  .nav { order: 3; width: 100%; overflow-x: auto; }
+  .nav { order: 3; flex: 1 0 100%; overflow-x: auto; }
   .userlink span[data-user-name] { display: none; }
 }
 @media (max-width: 520px) {
   .roles { grid-template-columns: 1fr; }
-  .form__row, .facts { grid-template-columns: 1fr; }
+  .form__row, .form__row--3, .facts { grid-template-columns: 1fr; }
+  .filters .switch { margin-left: 0; }
+  .menu__nav { top: 0; }
+  .cover--card { aspect-ratio: 16 / 7; }
   .role__card { grid-template-columns: auto 1fr; align-items: center; column-gap: 12px; }
   .role__card .icon { grid-row: span 2; }
 }

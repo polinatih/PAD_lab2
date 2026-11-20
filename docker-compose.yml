@@ -72,6 +72,32 @@ services:
     healthcheck: *app-healthcheck
     restart: unless-stopped
 
+  restaurant-service:
+    build: { context: ., dockerfile: services/restaurant-service/Dockerfile }
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql+asyncpg://restaurant:${RESTAURANT_DB_PASSWORD}@postgres:5432/restaurant_db
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    healthcheck: *app-healthcheck
+    restart: unless-stopped
+
+  # Одноразовый контейнер: наполняет систему демо-данными (рестораны, меню, тестовые аккаунты).
+  # Повторный запуск ничего не дублирует.
+  demo-seed:
+    image: python:3.12-slim
+    command: ["python", "/scripts/seed_demo.py", "--base", "http://gateway"]
+    environment:
+      PYTHONUNBUFFERED: "1"   # чтобы сообщения сразу были видны в docker compose logs
+    volumes:
+      - ./scripts:/scripts:ro
+    depends_on:
+      gateway: { condition: service_healthy }
+      auth-service: { condition: service_healthy }
+      restaurant-service: { condition: service_healthy }
+    restart: "no"
+
   # ======================= API Gateway =======================
   gateway:
     image: nginx:1.27-alpine
@@ -83,6 +109,7 @@ services:
       - ./frontend:/usr/share/nginx/html/app:ro
     depends_on:
       - auth-service
+      - restaurant-service
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
       interval: 10s
