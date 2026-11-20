@@ -38,8 +38,8 @@ export const session = {
   },
 };
 
-export async function api(path, { method = "GET", body, form } = {}) {
-  const headers = {};
+export async function api(path, { method = "GET", body, form, headers: extra = {} } = {}) {
+  const headers = { ...extra };
   if (session.token) headers.Authorization = `Bearer ${session.token}`;
   let payload;
   if (form) payload = form;

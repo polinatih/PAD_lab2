@@ -9,7 +9,7 @@ export const ROLE_LABELS = {
 const CATALOG = { href: "#/catalog", label: "Рестораны", match: /^\/(catalog|restaurants\/.+)?$/ };
 
 export const NAV = {
-  customer: [CATALOG],
+  customer: [CATALOG, { href: "#/orders", label: "Мои заказы", match: /^\/orders/ }],
   restaurant: [{ href: "#/my", label: "Мои рестораны", match: /^\/(my(\/.+)?)?$/ },
                { ...CATALOG, match: /^\/(catalog|restaurants\/.+)$/ }],
   courier: [],

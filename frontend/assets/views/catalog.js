@@ -1,6 +1,7 @@
-import { api } from "../api.js";
+import { api, session } from "../api.js";
 import { cover, money, restaurantFacts } from "../cuisine.js";
 import { h } from "../dom.js";
+import { cartBar, stepper } from "./cart.js";
 
 function restaurantCard(r) {
   return h("a", { class: `rcard ${r.is_open ? "" : "rcard--closed"}`, href: `#/restaurants/${r.id}` },
@@ -72,6 +73,7 @@ export async function catalogView() {
 // Страница ресторана с меню, сгруппированным по категориям.
 export async function restaurantView({ params }) {
   const r = await api(`/api/restaurants/${params.id}`);
+  const canOrder = session.user?.role === "customer" && r.is_open;
   const groups = new Map();
   for (const item of r.menu) {
     if (!groups.has(item.category)) groups.set(item.category, []);
@@ -88,7 +90,7 @@ export async function restaurantView({ params }) {
             item.description ? h("p", { class: "dish__desc" }, item.description) : null),
           h("div", { class: "dish__side" },
             h("span", { class: "dish__price" }, money(item.price)),
-            item.is_available ? null : h("span", { class: "muted" }, "нет в наличии")))))));
+            item.is_available ? (canOrder ? stepper(r, item) : null) : h("span", { class: "muted" }, "нет в наличии")))))));
 
   return h("div", { class: "page" },
     h("a", { class: "backlink", href: "#/catalog" }, "Все рестораны"),
@@ -109,5 +111,6 @@ export async function restaurantView({ params }) {
       : null,
     r.menu.length
       ? h("div", { class: "menu" }, sections)
-      : h("div", { class: "empty" }, h("p", { class: "empty__title" }, "Меню пока пустое")));
+      : h("div", { class: "empty" }, h("p", { class: "empty__title" }, "Меню пока пустое")),
+    canOrder ? cartBar(r.id) : null);
 }

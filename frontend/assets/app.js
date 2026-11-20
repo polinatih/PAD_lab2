@@ -3,9 +3,12 @@ import { api, session } from "./api.js";
 import { h, icon, toast } from "./dom.js";
 import { NAV, ROLE_LABELS } from "./roles.js";
 import { adminUsersView } from "./views/admin-users.js";
+import { cart } from "./cart.js";
 import { authView } from "./views/auth.js";
+import { cartView } from "./views/cart.js";
 import { catalogView, restaurantView } from "./views/catalog.js";
 import { homeView } from "./views/home.js";
+import { orderView, ordersView } from "./views/orders.js";
 import { manageRestaurantView, myRestaurantsView } from "./views/owner.js";
 import { profileView } from "./views/profile.js";
 
@@ -21,6 +24,9 @@ const routes = [
   ["/", { view: (ctx) => (HOME_BY_ROLE[session.user?.role] || homeView)(ctx) }],
   ["/catalog", { view: catalogView }],
   ["/restaurants/:id", { view: restaurantView }],
+  ["/cart", { view: cartView, roles: ["customer"] }],
+  ["/orders", { view: ordersView }],
+  ["/orders/:id", { view: orderView }],
   ["/my", { view: myRestaurantsView, roles: ["restaurant", "admin"] }],
   ["/my/:id", { view: manageRestaurantView, roles: ["restaurant", "admin"] }],
   ["/profile", { view: profileView }],
@@ -63,11 +69,27 @@ function shell(content) {
       h("a", { class: "wordmark", href: "#/" }, "Ложка"),
       h("nav", { class: "nav", "aria-label": "Основное меню" }, links),
       h("div", { class: "topbar__user" },
+        user.role === "customer" ? cartLink() : null,
         h("a", { class: "userlink", href: "#/profile", "aria-current": path === "/profile" ? "page" : false },
           icon("user", 18), h("span", { "data-user-name": "" }, user.full_name),
           h("span", { class: `chip chip--${user.role}` }, ROLE_LABELS[user.role])),
         logout)),
     h("main", { class: "shell__main", id: "main", tabindex: "-1" }, content));
+}
+
+function cartLink() {
+  const link = h("a", { class: "cartlink", href: "#/cart" }, icon("bag", 20), h("span", { class: "sr-only" }, "Корзина"));
+  const badge = h("span", { class: "cartlink__count" });
+  const update = () => {
+    const { count } = cart.summary();
+    badge.textContent = count;
+    badge.hidden = !count;
+    link.setAttribute("aria-label", count ? `Корзина, блюд: ${count}` : "Корзина");
+  };
+  link.append(badge);
+  update();
+  window.addEventListener("cart:changed", update);
+  return link;
 }
 
 function errorPage(err) {

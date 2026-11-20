@@ -120,6 +120,11 @@ POST  /api/restaurants/{id}/menu           добавить блюдо
 PATCH /api/restaurants/{id}/menu/{item}    цена, наличие
 POST  /internal/restaurants/{id}/quote     проверка блюд и расчёт стоимости (для order-service)
 
+POST  /api/orders                          оформить заказ (заголовок Idempotency-Key защищает от двойного клика)
+GET   /api/orders                          мои заказы (?active=true, ?status=paid,cooking)
+GET   /api/orders/{id}                     заказ: состав и история статусов
+POST  /api/orders/{id}/cancel              отменить заказ
+
 GET   /health, /ready            у каждого сервиса
 ```
 
@@ -139,7 +144,7 @@ python scripts/run_unit_tests.py
 - [x] **Этап 1.** Каркас: структура репозитория, общая библиотека, docker-compose (PostgreSQL, RabbitMQ), API Gateway
 - [x] **Этап 2.** auth-service: регистрация, вход, JWT, роли + веб-интерфейс: вход, регистрация, профиль, управление пользователями
 - [x] **Этап 3.** restaurant-service: рестораны и меню + UI: каталог ресторанов, кабинет ресторана, демо-данные
-- [ ] **Этап 4.** order-service: оформление заказа, синхронная проверка блюд в restaurant-service + UI: корзина, мои заказы
+- [x] **Этап 4.** order-service: оформление заказа, синхронная проверка блюд в restaurant-service, outbox, Idempotency-Key + UI: корзина, мои заказы, отслеживание заказа
 - [ ] **Этап 5.** payment-service: оплата через события RabbitMQ (saga)
 - [ ] **Этап 6.** delivery-service: курьеры и доставка + UI: кабинет курьера, отслеживание заказа
 - [ ] **Этап 7.** notification-service и review-service
@@ -153,7 +158,8 @@ python scripts/run_unit_tests.py
 ├── .env.example
 ├── services/                 # микросервисы
 │   ├── auth-service/         #   app/ (код), tests/, Dockerfile, requirements.txt
-│   └── restaurant-service/
+│   ├── restaurant-service/
+│   └── order-service/
 ├── frontend/                 # веб-интерфейс (раздаётся gateway)
 ├── libs/common/              # общая инфраструктурная библиотека
 ├── gateway/                  # конфигурация nginx (API Gateway)
