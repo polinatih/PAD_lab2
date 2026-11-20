@@ -4,7 +4,8 @@ Backend сервиса доставки еды, построенный на ми
 оформляет и оплачивает заказ. Ресторан готовит заказ, курьер его доставляет, а система уведомляет каждого
 участника о смене статуса.
 
-**Стек:** Python 3.12 · FastAPI · PostgreSQL 16 · RabbitMQ · nginx (API Gateway) · Docker Compose
+**Стек:** Python 3.12, FastAPI, PostgreSQL 16, RabbitMQ, nginx (API Gateway), Docker Compose.
+Веб-интерфейс «Ложка»: HTML, CSS и JavaScript без сборки, раздаётся тем же gateway.
 
 > Проект разрабатывается поэтапно, прогресс отмечен в разделе [План разработки](#план-разработки).
 
@@ -81,9 +82,24 @@ docker compose up -d --build
 
 | Что | Адрес |
 |---|---|
-| API Gateway | http://localhost:8080 (проверка: http://localhost:8080/health) |
+| Веб-интерфейс | http://localhost:8080 |
+| API Gateway | http://localhost:8080/api/... (проверка: http://localhost:8080/health) |
 | Swagger UI | http://localhost:8080/docs |
 | RabbitMQ UI | http://localhost:15672 (логин и пароль из `.env`) |
+
+Администратор создаётся автоматически: `admin@example.com` / `admin12345` (меняется в `.env`).
+
+### Основные endpoint'ы
+
+```
+POST  /api/auth/register         регистрация (роль: customer | restaurant | courier)
+POST  /api/auth/login            вход → JWT + данные пользователя
+GET   /api/auth/me               мой профиль
+PATCH /api/auth/me               изменить имя или телефон
+GET   /api/auth/users            список пользователей (admin)
+PATCH /api/auth/users/{id}/role  изменить роль (admin)
+GET   /health, /ready            у каждого сервиса
+```
 
 ### Тесты
 
@@ -99,11 +115,11 @@ python scripts/run_unit_tests.py
 ## План разработки
 
 - [x] **Этап 1.** Каркас: структура репозитория, общая библиотека, docker-compose (PostgreSQL, RabbitMQ), API Gateway
-- [ ] **Этап 2.** auth-service: регистрация, вход, JWT, роли
-- [ ] **Этап 3.** restaurant-service: рестораны и меню
-- [ ] **Этап 4.** order-service: оформление заказа, синхронная проверка блюд в restaurant-service
+- [x] **Этап 2.** auth-service: регистрация, вход, JWT, роли + веб-интерфейс: вход, регистрация, профиль, управление пользователями
+- [ ] **Этап 3.** restaurant-service: рестораны и меню + UI: каталог ресторанов, кабинет ресторана
+- [ ] **Этап 4.** order-service: оформление заказа, синхронная проверка блюд в restaurant-service + UI: корзина, мои заказы
 - [ ] **Этап 5.** payment-service: оплата через события RabbitMQ (saga)
-- [ ] **Этап 6.** delivery-service: курьеры и доставка
+- [ ] **Этап 6.** delivery-service: курьеры и доставка + UI: кабинет курьера, отслеживание заказа
 - [ ] **Этап 7.** notification-service и review-service
 - [ ] **Этап 8.** E2E-тесты, документация API, финальный README
 
@@ -113,7 +129,9 @@ python scripts/run_unit_tests.py
 ├── README.md
 ├── docker-compose.yml
 ├── .env.example
-├── services/                 # микросервисы (появляются начиная с этапа 2)
+├── services/                 # микросервисы
+│   └── auth-service/         #   app/ (код), tests/, Dockerfile, requirements.txt
+├── frontend/                 # веб-интерфейс (раздаётся gateway)
 ├── libs/common/              # общая инфраструктурная библиотека
 ├── gateway/                  # конфигурация nginx (API Gateway)
 ├── infrastructure/postgres/  # создание отдельной БД для каждого сервиса

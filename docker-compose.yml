@@ -1,5 +1,5 @@
 # Запуск:  copy .env.example .env  &&  docker compose up -d --build
-# Снаружи доступен только gateway: http://localhost:8080  (Swagger: http://localhost:8080/docs)
+# Снаружи доступен только gateway: http://localhost:8080 (веб-интерфейс), Swagger: http://localhost:8080/docs
 # RabbitMQ UI: http://localhost:15672
 
 name: food-delivery
@@ -58,7 +58,19 @@ services:
     restart: unless-stopped
 
   # ======================= Микросервисы =======================
-  # (добавляются на следующих этапах)
+  auth-service:
+    build: { context: ., dockerfile: services/auth-service/Dockerfile }
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql+asyncpg://auth:${AUTH_DB_PASSWORD}@postgres:5432/auth_db
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ACCESS_TOKEN_TTL_MINUTES: 720
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    healthcheck: *app-healthcheck
+    restart: unless-stopped
 
   # ======================= API Gateway =======================
   gateway:
@@ -68,6 +80,9 @@ services:
     volumes:
       - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./gateway/docs-index.html:/usr/share/nginx/html/docs/index.html:ro
+      - ./frontend:/usr/share/nginx/html/app:ro
+    depends_on:
+      - auth-service
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
       interval: 10s
