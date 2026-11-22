@@ -3,6 +3,7 @@ import { plural } from "../cart.js";
 import { money } from "../cuisine.js";
 import { h, toast } from "../dom.js";
 import { paymentPanel } from "./payment.js";
+import { orderReviewBlock } from "./reviews.js";
 
 const FINAL = new Set(["delivered", "cancelled"]);
 const CUSTOMER_CANCELLABLE = new Set(["pending_payment", "paid"]);
@@ -103,6 +104,8 @@ export async function orderView({ params }) {
   const route = location.hash;
   const holder = h("div", { class: "orderpage" });
   let payPanel = null;
+  let reviewBlock = null;
+  const reviewSlot = h("div", { class: "reviewslot" });
 
   async function reload() {
     const fresh = await api(`/api/orders/${order.id}`);
@@ -138,6 +141,13 @@ export async function orderView({ params }) {
 
     if (isCustomer && order.status === "pending_payment") payPanel ||= paymentPanel(order, afterPayment);
     else payPanel = null;
+    if (isCustomer && order.status === "delivered" && !reviewBlock) {
+      // событие order.delivered доходит до review-service асинхронно — дадим ему секунду
+      reviewBlock = setTimeout(async () => {
+        const block = await orderReviewBlock(order);
+        if (block) reviewSlot.replaceChildren(block);
+      }, 800);
+    }
     const paidNote = order.history.find((x) => x.status === "paid")?.note;
 
     holder.replaceChildren(
@@ -157,6 +167,7 @@ export async function orderView({ params }) {
               : null)) : null,
           h("div", {}, h("dt", {}, "Оформлен"), h("dd", {}, when(order.created_at)))),
         payPanel,
+        reviewSlot,
         cancel));
   }
 

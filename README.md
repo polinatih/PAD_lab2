@@ -62,13 +62,20 @@ customer ──POST /api/orders──► order-service ──REST──► resta
 | `payment.succeeded` | payment-service | order-service | заказ → «Оплачен» |
 | `payment.failed` | payment-service | order-service | заказ → «Отменён» (компенсация: 3 отказа банка или 15 минут без оплаты) |
 | `order.cancelled` | order-service | payment-service | если заказ был оплачен — возврат денег, `payment.refunded` |
-| `order.paid`, `order.accepted` | order-service | (notification-service, этап 7) | уведомления ресторану и клиенту |
+| `order.paid`, `order.accepted` | order-service | notification-service | ресторану — «новый заказ», клиенту — «оплачен», «готовится» |
 | `order.ready` | order-service | delivery-service | заказ появляется у курьеров в списке «Ждут курьера» |
 | `delivery.assigned` | delivery-service | order-service | заказ → «Курьер назначен», клиент видит имя и телефон курьера |
 | `delivery.picked_up` | delivery-service | order-service | заказ → «Курьер в пути» |
-| `delivery.delivered` | delivery-service | order-service | заказ → «Доставлен», событие `order.delivered` |
+| `delivery.delivered` | delivery-service | order-service, notification-service | заказ → «Доставлен», событие `order.delivered`; курьеру — сумма заработка |
+| `order.delivered` | order-service | review-service, notification-service | клиент может оценить ресторан |
+| `review.created` | review-service | restaurant-service, notification-service | пересчёт рейтинга в каталоге, уведомление ресторану |
+| `payment.refunded` | payment-service | notification-service | клиенту — «деньги вернутся на карту» |
+| `user.registered` | auth-service | notification-service | приветствие |
 
-События order-service, payment-service и delivery-service отправляются через **transactional outbox**: событие пишется в БД
+notification-service слушает почти все события, но **никто не вызывает его напрямую**: если он недоступен,
+события ждут в его очереди RabbitMQ, а остальная система работает как обычно.
+
+События order-service, payment-service, delivery-service и review-service отправляются через **transactional outbox**: событие пишется в БД
 в той же транзакции, что и изменение заказа или платежа, и не теряется, даже если брокер временно недоступен.
 
 ### Общая инфраструктура (`libs/common`)
@@ -159,6 +166,15 @@ POST  /api/deliveries/{id}/pickup          забрал в ресторане
 POST  /api/deliveries/{id}/deliver         доставил
 GET   /api/deliveries/mine                 мои доставки
 
+GET   /api/notifications                   мои уведомления
+GET   /api/notifications/unread-count      сколько непрочитанных
+POST  /api/notifications/read-all          прочитать все
+
+GET   /api/reviews/restaurant/{id}         отзывы и рейтинг ресторана (публично)
+GET   /api/reviews/order/{order_id}        можно ли оценить заказ
+POST  /api/reviews                         оценить доставленный заказ (1–5 звёзд)
+POST  /api/reviews/{id}/reply              ответ ресторана на отзыв
+
 GET   /health, /ready            у каждого сервиса
 ```
 
@@ -181,7 +197,7 @@ python scripts/run_unit_tests.py
 - [x] **Этап 4.** order-service: оформление заказа, синхронная проверка блюд в restaurant-service, outbox, Idempotency-Key + UI: корзина, мои заказы, отслеживание заказа
 - [x] **Этап 5.** payment-service: оплата через события RabbitMQ (saga), возвраты, тайм-аут оплаты + UI: оплата картой, доска заказов ресторана
 - [x] **Этап 6.** delivery-service: курьеры и доставка, сверка пропущенных заказов + UI: кабинет курьера, курьер в заказе клиента
-- [ ] **Этап 7.** notification-service и review-service
+- [x] **Этап 7.** notification-service и review-service + UI: колокольчик с уведомлениями, оценка заказа, отзывы и рейтинг ресторана, ответы ресторана
 - [ ] **Этап 8.** E2E-тесты, документация API, финальный README
 
 ## Структура репозитория
@@ -195,7 +211,9 @@ python scripts/run_unit_tests.py
 │   ├── restaurant-service/
 │   ├── order-service/
 │   ├── payment-service/
-│   └── delivery-service/
+│   ├── delivery-service/
+│   ├── notification-service/
+│   └── review-service/
 ├── frontend/                 # веб-интерфейс (раздаётся gateway)
 ├── libs/common/              # общая инфраструктурная библиотека
 ├── gateway/                  # конфигурация nginx (API Gateway)

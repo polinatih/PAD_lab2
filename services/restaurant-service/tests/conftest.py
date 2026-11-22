@@ -21,9 +21,14 @@ CUSTOMER, ADMIN = headers("cust", "customer"), headers("root", "admin")
 
 
 @pytest.fixture
-def client(tmp_path):
+def bus():
+    return InMemoryEventBus()
+
+
+@pytest.fixture
+def client(tmp_path, bus):
     settings = Settings(database_url=f"sqlite+aiosqlite:///{tmp_path}/t.db", jwt_secret=SECRET, internal_api_key="ik")
-    with TestClient(build_app(settings, bus=InMemoryEventBus())) as c:
+    with TestClient(build_app(settings, bus=bus)) as c:
         yield c
 
 

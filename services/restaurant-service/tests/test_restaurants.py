@@ -68,3 +68,10 @@ def test_quote_rejects_bad_orders(client, restaurant):
     client.patch(f"/api/restaurants/{rid}", json={"is_open": False}, headers=OWNER)
     r = client.post(url, json={"items": [{"menu_item_id": items["Пепперони"], "quantity": 1}]}, headers=INTERNAL)
     assert r.status_code == 409 and r.json()["error"]["code"] == "restaurant_closed"
+
+
+def test_rating_updated_from_review_event(client, restaurant, bus):
+    client.portal.call(bus.deliver, "review.created", {"restaurant_id": restaurant["id"], "rating_avg": 4.5, "rating_count": 2})
+    r = client.get(f"/api/restaurants/{restaurant['id']}").json()
+    assert (r["rating_avg"], r["rating_count"]) == (4.5, 2)
+    client.portal.call(bus.deliver, "review.created", {"restaurant_id": "ghost", "rating_avg": 1, "rating_count": 1})

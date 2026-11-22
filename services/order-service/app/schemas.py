@@ -46,6 +46,7 @@ class OrderOut(BaseModel):
     customer_name: str
     customer_phone: str | None
     restaurant_id: str
+    restaurant_owner_id: str
     restaurant_name: str
     restaurant_address: str
     delivery_address: str

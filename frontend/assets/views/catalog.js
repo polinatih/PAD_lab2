@@ -2,6 +2,7 @@ import { api, session } from "../api.js";
 import { cover, money, restaurantFacts } from "../cuisine.js";
 import { h } from "../dom.js";
 import { cartBar, stepper } from "./cart.js";
+import { restaurantReviews, stars } from "./reviews.js";
 
 function restaurantCard(r) {
   return h("a", { class: `rcard ${r.is_open ? "" : "rcard--closed"}`, href: `#/restaurants/${r.id}` },
@@ -72,7 +73,7 @@ export async function catalogView() {
 
 // Страница ресторана с меню, сгруппированным по категориям.
 export async function restaurantView({ params }) {
-  const r = await api(`/api/restaurants/${params.id}`);
+  const [r, reviews] = await Promise.all([api(`/api/restaurants/${params.id}`), restaurantReviews(params.id)]);
   const canOrder = session.user?.role === "customer" && r.is_open;
   const groups = new Map();
   for (const item of r.menu) {
@@ -102,7 +103,9 @@ export async function restaurantView({ params }) {
           h("div", {}, h("dt", {}, "Адрес"), h("dd", {}, r.address)),
           h("div", {}, h("dt", {}, "Приготовление"), h("dd", {}, `${r.prep_minutes}–${r.prep_minutes + 15} мин`)),
           h("div", {}, h("dt", {}, "Доставка"), h("dd", {}, money(r.delivery_fee))),
-          h("div", {}, h("dt", {}, "Минимальный заказ"), h("dd", {}, money(r.min_order)))),
+          h("div", {}, h("dt", {}, "Минимальный заказ"), h("dd", {}, money(r.min_order))),
+          r.rating_count ? h("div", {}, h("dt", {}, "Рейтинг"),
+            h("dd", {}, stars(r.rating_avg), ` ${r.rating_avg.toFixed(1).replace(".", ",")}`)) : null),
         r.is_open ? null : h("p", { class: "notice" }, "Ресторан сейчас закрыт. Меню можно посмотреть, но заказ оформить не получится."))),
     groups.size > 1
       ? h("nav", { class: "menu__nav", "aria-label": "Категории меню" },
@@ -112,5 +115,6 @@ export async function restaurantView({ params }) {
     r.menu.length
       ? h("div", { class: "menu" }, sections)
       : h("div", { class: "empty" }, h("p", { class: "empty__title" }, "Меню пока пустое")),
+    reviews,
     canOrder ? cartBar(r.id) : null);
 }

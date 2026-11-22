@@ -1,6 +1,7 @@
 import { api } from "../api.js";
 import { cover, money } from "../cuisine.js";
 import { h, showFieldErrors, toast } from "../dom.js";
+import { ownerReviews } from "./reviews.js";
 
 const SUGGESTED = ["Пицца", "Бургеры", "Суши", "Молдавская", "Грузинская", "Азиатская", "Выпечка", "Здоровая еда", "Десерты"];
 
@@ -94,6 +95,7 @@ export async function myRestaurantsView({ navigate }) {
 // Управление рестораном: меню (добавить, цена, наличие, удалить) и настройки.
 export async function manageRestaurantView({ params, navigate }) {
   let r = await api(`/api/restaurants/${params.id}`);
+  const reviews = await ownerReviews(r.id);
   const base = `/api/restaurants/${r.id}`;
 
   function dishRow(item) {
@@ -197,5 +199,7 @@ export async function manageRestaurantView({ params, navigate }) {
         addForm,
         emptyHint,
         menuList),
-      h("section", { class: "panel" }, h("h2", { class: "panel__title" }, "Настройки ресторана"), settings)));
+      h("div", { class: "stack" },
+        h("section", { class: "panel" }, h("h2", { class: "panel__title" }, "Настройки ресторана"), settings),
+        reviews)));
 }

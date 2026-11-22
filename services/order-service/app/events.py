@@ -65,5 +65,8 @@ class OrderEventHandlers:
 
     async def on_delivery_delivered(self, envelope: dict) -> None:
         # order.delivered: после этого клиент может оставить отзыв (review-service, этап 7)
+        async with self.db.sessionmaker() as session:
+            order = await session.get(Order, envelope["data"]["order_id"])
+            name = order.customer_name if order else ""
         await self._advance(envelope["data"]["order_id"], states.DELIVERED, note="Заказ доставлен",
-                            event="order.delivered")
+                            event="order.delivered", extra={"customer_name": name})

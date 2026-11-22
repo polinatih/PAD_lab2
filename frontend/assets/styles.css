@@ -152,7 +152,7 @@ select { cursor: pointer; }
   content: ""; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px; background: var(--line);
 }
 .ticket__steps::after {
-  content: ""; position: absolute; left: 7px; top: 8px; width: 2px; height: var(--progress, 62%);
+  content: ""; position: absolute; left: 7px; top: 8px; width: 2px; height: var(--progress, 62%); max-height: calc(100% - 16px);
   background: var(--basil); transform-origin: top; animation: fill-track 1.4s .3s cubic-bezier(.3, .7, .2, 1) both;
 }
 .step { display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 12px; position: relative; z-index: 1; }
@@ -424,7 +424,61 @@ select { cursor: pointer; }
 .job__fee { font: 700 var(--step-1)/1 var(--font-display); color: var(--basil); }
 .job .btn { justify-self: start; }
 
-/* ---------- уведомления ---------- */
+/* ---------- колокольчик и уведомления ---------- */
+.bellwrap { position: relative; }
+.bell { position: relative; display: inline-grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; border: 0; background: transparent; color: var(--ink); cursor: pointer; }
+.bell:hover, .bell[aria-expanded="true"] { background: var(--plate); }
+.bell__count { position: absolute; top: 2px; right: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--chili); color: var(--plate); font-size: 0.7rem; font-weight: 700; display: grid; place-items: center; }
+.bell__count[hidden] { display: none; }
+.notifs { position: absolute; right: -8px; top: calc(100% + 10px); width: min(380px, 92vw); max-height: 70vh; overflow: auto; background: var(--plate); border-radius: var(--radius-l); box-shadow: 0 24px 60px -20px rgba(10, 30, 20, .45), 0 0 0 1.5px var(--line); z-index: 50; }
+.notifs[hidden] { display: none; }
+.notifs__head { position: sticky; top: 0; background: var(--plate); display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1.5px solid var(--sage); }
+.notifs__title { font: 700 var(--step-0)/1 var(--font-display); }
+.notifs__readall { border: 0; background: none; color: var(--basil); font: 600 var(--step--1)/1 var(--font-body); cursor: pointer; }
+.notifs__readall:disabled { color: var(--muted); cursor: default; }
+.notifs__list { list-style: none; margin: 0; padding: 6px; }
+.notifs__empty { padding: 24px 16px; color: var(--muted); text-align: center; }
+.notif { width: 100%; display: grid; gap: 2px; text-align: left; padding: 10px 12px 10px 16px; border: 0; border-radius: var(--radius-m); background: none; font: inherit; color: inherit; cursor: pointer; position: relative; }
+.notif:hover { background: var(--sage); }
+.notif--unread::before { content: ""; position: absolute; left: 4px; top: 16px; width: 6px; height: 6px; border-radius: 50%; background: var(--chili); }
+.notif__title { font-weight: 600; }
+.notif--success .notif__title { color: var(--basil-dark); }
+.notif--error .notif__title { color: var(--chili); }
+.notif--warning .notif__title { color: #7a5208; }
+.notif__body { color: var(--muted); font-size: var(--step--1); line-height: 1.4; }
+.notif__time { color: var(--muted); font-size: 0.75rem; }
+
+/* ---------- отзывы ---------- */
+.stars { display: inline-flex; gap: 1px; color: var(--line); letter-spacing: 0; }
+.star--on { color: var(--saffron); }
+.reviews { display: grid; gap: 16px; }
+.reviews__layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 20px; align-items: start; }
+.rating { background: var(--plate); border-radius: var(--radius-l); padding: 22px; display: grid; gap: 6px; justify-items: start; }
+.rating__value { font: 800 var(--step-3)/1 var(--font-display); }
+.rating .stars { font-size: 1.2rem; }
+.rating__bars { list-style: none; margin: 10px 0 0; padding: 0; width: 100%; display: grid; gap: 4px; font-size: var(--step--1); }
+.rating__bars li { display: grid; grid-template-columns: 12px 1fr 24px; gap: 8px; align-items: center; }
+.rating__bar { height: 6px; border-radius: 3px; background: var(--sage); overflow: hidden; }
+.rating__bar span { display: block; height: 100%; background: var(--saffron); }
+.reviews__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.review { background: var(--plate); border-radius: var(--radius-m); padding: 16px 18px; display: grid; gap: 8px; }
+.panel .review, .reviewbox .review { background: var(--sage); }
+.review__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.review__author { font-weight: 600; }
+.review__reply { border-left: 3px solid var(--basil); padding-left: 12px; }
+.review__reply-label { font-size: 0.75rem; font-weight: 600; color: var(--basil); }
+.review__replyform { display: flex; gap: 8px; }
+.review__replyform input { min-height: 38px; }
+.reviewslot:empty { display: none; }
+.reviewslot { width: 100%; max-width: 440px; }
+.reviewbox { background: var(--plate); border-radius: var(--radius-l); padding: 22px; display: grid; gap: 14px; border: 2px solid var(--saffron); }
+.starpicker { display: flex; gap: 4px; }
+.starpick { width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--sage); color: var(--line); font-size: 1.5rem; cursor: pointer; transition: transform .1s; }
+.starpick:hover { transform: scale(1.08); }
+.starpick--on { color: var(--saffron); background: var(--saffron-soft); }
+.stack { display: grid; gap: 22px; align-content: start; }
+
+/* ---------- всплывающие сообщения ---------- */
 .toasts { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 100; width: min(92vw, 420px); }
 .toast { padding: 12px 18px; border-radius: var(--radius-m); background: var(--ink); color: var(--plate); font-weight: 500; animation: toast-in .2s ease-out; transition: opacity .3s; }
 .toast--error { background: var(--chili); }
@@ -437,7 +491,7 @@ select { cursor: pointer; }
   .board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 960px) {
-  .rhero, .split, .split--checkout, .orderpage { grid-template-columns: 1fr; }
+  .rhero, .split, .split--checkout, .orderpage, .reviews__layout { grid-template-columns: 1fr; }
   .orow { grid-template-columns: minmax(0, 1fr) auto; }
   .orow__items { display: none; }
   .dishedit { grid-template-columns: 1fr auto; }

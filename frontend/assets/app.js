@@ -9,6 +9,7 @@ import { cartView } from "./views/cart.js";
 import { catalogView, restaurantView } from "./views/catalog.js";
 import { courierHistoryView, courierView } from "./views/courier.js";
 import { homeView } from "./views/home.js";
+import { notificationsBell, resetNotifications } from "./views/notifications.js";
 import { kitchenView } from "./views/kitchen.js";
 import { orderView, ordersView } from "./views/orders.js";
 import { manageRestaurantView, myRestaurantsView } from "./views/owner.js";
@@ -66,6 +67,7 @@ function shell(content) {
     h("span", { class: "sr-only" }, "Выйти"));
   logout.addEventListener("click", () => {
     session.clear();
+    resetNotifications();
     navigate("#/login");
   });
 
@@ -74,6 +76,7 @@ function shell(content) {
       h("a", { class: "wordmark", href: "#/" }, "Ложка"),
       h("nav", { class: "nav", "aria-label": "Основное меню" }, links),
       h("div", { class: "topbar__user" },
+        notificationsBell(navigate),
         user.role === "customer" ? cartLink() : null,
         h("a", { class: "userlink", href: "#/profile", "aria-current": path === "/profile" ? "page" : false },
           icon("user", 18), h("span", { "data-user-name": "" }, user.full_name),
