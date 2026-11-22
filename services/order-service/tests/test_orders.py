@@ -137,3 +137,25 @@ def test_restaurant_rejects_paid_order_with_refund(client, bus):
     assert r.status_code == 200 and r.json()["cancel_reason"] == "Закончилось тесто"
     assert wait_events(bus, 3)[-1] == "order.cancelled"
     assert bus.published[-1]["data"]["refund"] is True and bus.published[-1]["data"]["cancelled_by"] == "ресторан"
+
+
+def test_delivery_events_complete_the_order(client, bus):
+    oid = _paid_order(client, bus)
+    client.post(f"/api/orders/{oid}/accept", headers=OWNER)
+    client.post(f"/api/orders/{oid}/ready", headers=OWNER)
+    courier = {"order_id": oid, "courier_id": "andrei", "courier_name": "Андрей", "courier_phone": "+37379333444"}
+    client.portal.call(bus.deliver, "delivery.assigned", courier)
+    order = client.get(f"/api/orders/{oid}", headers=CUSTOMER).json()
+    assert order["status"] == "courier_assigned" and order["courier_phone"] == "+37379333444"
+    # курьер теперь видит заказ
+    assert client.get(f"/api/orders/{oid}", headers=headers("andrei", "courier")).status_code == 200
+
+    client.portal.call(bus.deliver, "delivery.delivered", courier)  # пришло раньше времени — пропускаем
+    assert client.get(f"/api/orders/{oid}", headers=CUSTOMER).json()["status"] == "courier_assigned"
+    client.portal.call(bus.deliver, "delivery.picked_up", courier)
+    client.portal.call(bus.deliver, "delivery.delivered", courier)
+    order = client.get(f"/api/orders/{oid}", headers=CUSTOMER).json()
+    assert order["status"] == "delivered"
+    assert [h["status"] for h in order["history"]] == ["pending_payment", "paid", "cooking", "ready",
+                                                       "courier_assigned", "in_delivery", "delivered"]
+    assert wait_events(bus, 5)[-1] == "order.delivered"

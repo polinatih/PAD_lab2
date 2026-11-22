@@ -110,6 +110,20 @@ services:
     healthcheck: *app-healthcheck
     restart: unless-stopped
 
+  delivery-service:
+    build: { context: ., dockerfile: services/delivery-service/Dockerfile }
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql+asyncpg://delivery:${DELIVERY_DB_PASSWORD}@postgres:5432/delivery_db
+      AUTH_SERVICE_URL: http://auth-service:8000
+      ORDER_SERVICE_URL: http://order-service:8000
+      MAX_ACTIVE_PER_COURIER: 1
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    healthcheck: *app-healthcheck
+    restart: unless-stopped
+
   # Одноразовый контейнер: наполняет систему демо-данными (рестораны, меню, тестовые аккаунты).
   # Повторный запуск ничего не дублирует.
   demo-seed:
@@ -139,6 +153,7 @@ services:
       - restaurant-service
       - order-service
       - payment-service
+      - delivery-service
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
       interval: 10s

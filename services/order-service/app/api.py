@@ -192,6 +192,13 @@ async def ready_order(order_id: str, request: Request, user: CurrentUser = Depen
     return await _order(session, order.id)
 
 
+@internal.get("/orders", response_model=list[OrderOut], summary="Заказы по статусу (для сверки другими сервисами)")
+async def internal_orders(status: str = Query(..., description="например, ready"), limit: int = Query(200, ge=1, le=1000),
+                          session: AsyncSession = Depends(get_session)):
+    q = select(Order).where(Order.status == status).order_by(Order.created_at).limit(limit)
+    return (await session.scalars(q)).all()
+
+
 @internal.get("/orders/{order_id}", response_model=OrderOut, summary="Заказ (для других сервисов)")
 async def internal_order(order_id: str, session: AsyncSession = Depends(get_session)):
     return await _order(session, order_id)

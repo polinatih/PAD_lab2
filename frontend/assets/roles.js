@@ -13,6 +13,7 @@ export const NAV = {
   restaurant: [{ href: "#/kitchen", label: "Заказы", match: /^\/(kitchen)?$/ },
                { href: "#/my", label: "Мои рестораны", match: /^\/my(\/.+)?$/ },
                { ...CATALOG, match: /^\/(catalog|restaurants\/.+)$/ }],
-  courier: [],
+  courier: [{ href: "#/courier", label: "Доставки", match: /^\/(courier)?$/ },
+            { href: "#/courier/history", label: "История", match: /^\/courier\/history$/ }],
   admin: [CATALOG, { href: "#/admin/users", label: "Пользователи" }],
 };

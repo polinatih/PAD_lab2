@@ -24,6 +24,8 @@ DESCRIPTION = """
 Saga «заказ»: слушает `payment.succeeded` (→ `paid`) и `payment.failed` (→ `cancelled`, компенсация).
 Ресторан принимает заказ (`/accept` → `cooking`, событие `order.accepted`) и отмечает готовность
 (`/ready` → `ready`, событие `order.ready` для delivery-service).
+Доставка: `delivery.assigned` → `courier_assigned`, `delivery.picked_up` → `in_delivery`,
+`delivery.delivered` → `delivered` (событие `order.delivered`).
 
 Статусы: `pending_payment → paid → cooking → ready → courier_assigned → in_delivery → delivered`, отмена: `cancelled`.
 
@@ -46,6 +48,9 @@ def build_app(settings: Settings | None = None, bus=None, restaurants_client=Non
     handlers = OrderEventHandlers(db, outbox)
     bus.subscribe(["payment.succeeded"], handlers.on_payment_succeeded)
     bus.subscribe(["payment.failed"], handlers.on_payment_failed)
+    bus.subscribe(["delivery.assigned"], handlers.on_delivery_assigned)
+    bus.subscribe(["delivery.picked_up"], handlers.on_delivery_picked_up)
+    bus.subscribe(["delivery.delivered"], handlers.on_delivery_delivered)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):

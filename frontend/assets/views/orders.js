@@ -151,6 +151,10 @@ export async function orderView({ params }) {
           h("div", {}, h("dt", {}, "Телефон"), h("dd", {}, order.customer_phone || "не указан")),
           order.comment ? h("div", {}, h("dt", {}, "Комментарий"), h("dd", {}, order.comment)) : null,
           paidNote ? h("div", {}, h("dt", {}, "Оплата"), h("dd", {}, paidNote.replace("Оплачено: ", ""))) : null,
+          order.courier_name ? h("div", {}, h("dt", {}, "Курьер"), h("dd", {}, order.courier_name,
+            order.courier_phone && !FINAL.has(order.status)
+              ? h("a", { class: "route__phone", href: `tel:${order.courier_phone.replace(/[^\d+]/g, "")}` }, order.courier_phone)
+              : null)) : null,
           h("div", {}, h("dt", {}, "Оформлен"), h("dd", {}, when(order.created_at)))),
         payPanel,
         cancel));

@@ -40,6 +40,8 @@ class Order(Base):
     total: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     prep_minutes: Mapped[int] = mapped_column(Integer, default=25)
     courier_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    courier_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    courier_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     idempotency_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)

@@ -56,6 +56,8 @@ class OrderOut(BaseModel):
     total: float
     prep_minutes: int
     courier_id: str | None
+    courier_name: str | None = None
+    courier_phone: str | None = None
     created_at: datetime
     updated_at: datetime
     items: list[OrderItemOut]

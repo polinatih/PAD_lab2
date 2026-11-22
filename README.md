@@ -63,9 +63,12 @@ customer ──POST /api/orders──► order-service ──REST──► resta
 | `payment.failed` | payment-service | order-service | заказ → «Отменён» (компенсация: 3 отказа банка или 15 минут без оплаты) |
 | `order.cancelled` | order-service | payment-service | если заказ был оплачен — возврат денег, `payment.refunded` |
 | `order.paid`, `order.accepted` | order-service | (notification-service, этап 7) | уведомления ресторану и клиенту |
-| `order.ready` | order-service | (delivery-service, этап 6) | поиск курьера |
+| `order.ready` | order-service | delivery-service | заказ появляется у курьеров в списке «Ждут курьера» |
+| `delivery.assigned` | delivery-service | order-service | заказ → «Курьер назначен», клиент видит имя и телефон курьера |
+| `delivery.picked_up` | delivery-service | order-service | заказ → «Курьер в пути» |
+| `delivery.delivered` | delivery-service | order-service | заказ → «Доставлен», событие `order.delivered` |
 
-События order-service и payment-service отправляются через **transactional outbox**: событие пишется в БД
+События order-service, payment-service и delivery-service отправляются через **transactional outbox**: событие пишется в БД
 в той же транзакции, что и изменение заказа или платежа, и не теряется, даже если брокер временно недоступен.
 
 ### Общая инфраструктура (`libs/common`)
@@ -112,6 +115,9 @@ docker compose up -d --build
 | `courier@demo.md` | курьер |
 | `owner1@demo.md`, `owner2@demo.md`, `owner3@demo.md` | владельцы ресторанов |
 
+> Новые колонки в существующих таблицах добавляются автоматически при старте сервиса (`libs/common/common/db.py`),
+> поэтому базу между этапами пересоздавать не нужно.
+>
 > **После обновления проекта** (новый этап) выполните `docker compose up -d --build`, а затем
 > `docker compose restart gateway`: nginx читает свою конфигурацию только при старте.
 
@@ -145,6 +151,14 @@ GET   /api/payments/order/{order_id}       платёж по заказу
 POST  /api/payments/order/{order_id}/pay   оплатить картой (тест: 4242 4242 4242 4242 — успех, 4000 0000 0000 0002 — отказ)
 GET   /api/payments                        все платежи (admin)
 
+GET   /api/deliveries/couriers/me          курьер: на линии ли, статистика за сегодня
+PUT   /api/deliveries/couriers/me          выйти на линию / уйти с линии
+GET   /api/deliveries/available            заказы, которые ждут курьера
+POST  /api/deliveries/{id}/claim           взять заказ (только один курьер получит заказ)
+POST  /api/deliveries/{id}/pickup          забрал в ресторане
+POST  /api/deliveries/{id}/deliver         доставил
+GET   /api/deliveries/mine                 мои доставки
+
 GET   /health, /ready            у каждого сервиса
 ```
 
@@ -166,7 +180,7 @@ python scripts/run_unit_tests.py
 - [x] **Этап 3.** restaurant-service: рестораны и меню + UI: каталог ресторанов, кабинет ресторана, демо-данные
 - [x] **Этап 4.** order-service: оформление заказа, синхронная проверка блюд в restaurant-service, outbox, Idempotency-Key + UI: корзина, мои заказы, отслеживание заказа
 - [x] **Этап 5.** payment-service: оплата через события RabbitMQ (saga), возвраты, тайм-аут оплаты + UI: оплата картой, доска заказов ресторана
-- [ ] **Этап 6.** delivery-service: курьеры и доставка + UI: кабинет курьера, отслеживание заказа
+- [x] **Этап 6.** delivery-service: курьеры и доставка, сверка пропущенных заказов + UI: кабинет курьера, курьер в заказе клиента
 - [ ] **Этап 7.** notification-service и review-service
 - [ ] **Этап 8.** E2E-тесты, документация API, финальный README
 
@@ -180,7 +194,8 @@ python scripts/run_unit_tests.py
 │   ├── auth-service/         #   app/ (код), tests/, Dockerfile, requirements.txt
 │   ├── restaurant-service/
 │   ├── order-service/
-│   └── payment-service/
+│   ├── payment-service/
+│   └── delivery-service/
 ├── frontend/                 # веб-интерфейс (раздаётся gateway)
 ├── libs/common/              # общая инфраструктурная библиотека
 ├── gateway/                  # конфигурация nginx (API Gateway)

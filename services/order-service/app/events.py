@@ -50,3 +50,20 @@ class OrderEventHandlers:
         # Компенсация в saga: оплата не прошла — заказ отменяется. Деньги не списаны, возвращать нечего.
         await self._advance(d["order_id"], states.CANCELLED, note=reason, event="order.cancelled",
                             extra={"cancelled_by": "система", "reason": reason, "refund": False}, update=set_reason)
+
+    async def on_delivery_assigned(self, envelope: dict) -> None:
+        d = envelope["data"]
+
+        def set_courier(order: Order) -> None:
+            order.courier_id, order.courier_name, order.courier_phone = d["courier_id"], d.get("courier_name"), d.get("courier_phone")
+
+        await self._advance(d["order_id"], states.COURIER_ASSIGNED, note=f"Курьер: {d.get('courier_name') or 'назначен'}",
+                            update=set_courier)
+
+    async def on_delivery_picked_up(self, envelope: dict) -> None:
+        await self._advance(envelope["data"]["order_id"], states.IN_DELIVERY, note="Курьер забрал заказ")
+
+    async def on_delivery_delivered(self, envelope: dict) -> None:
+        # order.delivered: после этого клиент может оставить отзыв (review-service, этап 7)
+        await self._advance(envelope["data"]["order_id"], states.DELIVERED, note="Заказ доставлен",
+                            event="order.delivered")
