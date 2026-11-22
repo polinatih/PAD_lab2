@@ -68,12 +68,12 @@ class ServiceClient:
             return None
         if resp.is_success:
             return resp.json()
-        message = _extract_message(resp)
+        message, code, details = _extract_error(resp)
         if resp.status_code == 404:
-            raise NotFound(message)
+            raise NotFound(message, code=code, details=details)
         if 400 <= resp.status_code < 500:
-            # Ошибку клиента от соседа пробрасываем с тем же кодом
-            raise AppError(message, status_code=resp.status_code, code="upstream_rejected")
+            # Ошибку клиента от соседа пробрасываем как есть: тот же HTTP-статус, код и детали
+            raise AppError(message, status_code=resp.status_code, code=code or "upstream_rejected", details=details)
         raise BadGateway(f"Сервис {self.name} вернул ошибку {resp.status_code}")
 
     async def get(self, path: str, **kw):
@@ -83,8 +83,9 @@ class ServiceClient:
         return await self.request("POST", path, **kw)
 
 
-def _extract_message(resp: httpx.Response) -> str:
+def _extract_error(resp: httpx.Response) -> tuple[str, str | None, object]:
     try:
-        return resp.json()["error"]["message"]
+        err = resp.json()["error"]
+        return err["message"], err.get("code"), err.get("details")
     except Exception:  # noqa: BLE001
-        return resp.text[:200] or f"HTTP {resp.status_code}"
+        return resp.text[:200] or f"HTTP {resp.status_code}", None, None

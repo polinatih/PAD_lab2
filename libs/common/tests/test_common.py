@@ -62,6 +62,8 @@ def test_retry_then_success_and_headers():
 
 
 def test_client_error_is_propagated():
+    body = {"error": {"message": "Ресторан закрыт", "code": "restaurant_closed", "details": [{"field": "x"}]}}
     with pytest.raises(AppError) as e:
-        asyncio.run(_client(lambda r: httpx.Response(409, json={"error": {"message": "conflict"}})).get("/x"))
-    assert e.value.status_code == 409 and e.value.message == "conflict"
+        asyncio.run(_client(lambda r: httpx.Response(409, json=body)).get("/x"))
+    assert e.value.status_code == 409 and e.value.message == "Ресторан закрыт"
+    assert e.value.code == "restaurant_closed" and e.value.details == [{"field": "x"}]
